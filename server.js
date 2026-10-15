@@ -192,5 +192,9 @@ export function createServer({ stateDir = dataDir } = {}) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const server = createServer();
   const port = Number(process.env.PORT || 4173);
-  server.listen(port, '127.0.0.1', () => console.log(`Agent Yard is up at http://127.0.0.1:${port}`));
+  const host = process.env.HOST || '127.0.0.1';
+  server.listen(port, host, () => {
+    const displayHost = host === '0.0.0.0' ? '<server-lan-ip>' : host;
+    console.log(`Agent Yard is up at http://${displayHost}:${port}`);
+  });
 }

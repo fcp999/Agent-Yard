@@ -10,7 +10,15 @@ Requires Node.js 20 or newer. No `npm install` is needed.
 npm start
 ```
 
-Open <http://127.0.0.1:4173>. The default Ollama address is `http://127.0.0.1:11434`. Change it with the gear button if the Ollama service is elsewhere. The app binds to loopback only.
+Open <http://127.0.0.1:4173>. The default Ollama address is `http://127.0.0.1:11434`. Change it with the gear button if the Ollama service is elsewhere. Agent Yard is a browser app and runs headless; it needs no VNC, X server, or desktop session.
+
+By default, it binds to loopback so only a browser on the same machine can connect. To run it on a headless Linux host and open it from another machine on your trusted LAN:
+
+```sh
+HOST=0.0.0.0 npm start
+```
+
+Then open `http://<server-lan-ip>:4173` in your browser. Set `PORT` to change the port. Keep the host behind a trusted LAN or firewall; this first version has no user login.
 
 The Ollama host must be reachable from the machine running Agent Yard. For a remote Ollama host, its service needs to accept connections from this machine. The app itself does not configure Ollama or expose Ollama to the network.
 
