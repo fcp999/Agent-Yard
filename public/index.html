@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101319">
+  <title>Agent Yard</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark">AY</span><span>AGENT YARD<small>LOCAL WORKBENCH</small></span></div>
+      <button class="nav-item active"><span>▦</span> Mission Control</button>
+      <div class="side-label">WORKSPACE</div>
+      <div class="workspace-card"><span class="pulse"></span><span><b>Personal Yard</b><small id="connection-label">Connecting to Ollama…</small></span><span class="dots">···</span></div>
+      <div class="side-label">YOUR CREW <button class="tiny-add" aria-label="Add a role">+</button></div>
+      <div class="crew-list">
+        <div class="crew-item"><i class="crew-icon blue">A</i><span><b>Architect</b><small>Plans the work</small></span><em>READY</em></div>
+        <div class="crew-item"><i class="crew-icon orange">B</i><span><b>Builder</b><small>Designs the solution</small></span><em>READY</em></div>
+        <div class="crew-item"><i class="crew-icon green">R</i><span><b>Reviewer</b><small>Finds the cracks</small></span><em>READY</em></div>
+      </div>
+      <div class="sidebar-foot"><div class="avatar">F</div><span><b>Local session</b><small>No app account</small></span><span class="local-lock">⌑</span></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar"><div><span class="crumb">PERSONAL YARD</span><span class="slash">/</span><b>Mission Control</b></div><div class="top-actions"><span class="local-pill"><i></i> LOCAL FIRST</span><button class="icon-button" id="settings-open" aria-label="Open settings">⚙</button></div></header>
+      <section class="content">
+        <div class="eyebrow"><span class="eyebrow-line"></span> YOUR AI CREW, WITHOUT THE SIGN-IN CIRCUS</div>
+        <h1>What are we <span>building?</span></h1>
+        <p class="intro">Give the crew a job. They’ll look at it from three angles and bring you one clear starting point.</p>
+
+        <section class="mission-card">
+          <div class="card-top"><div><span class="step">01</span><div><h2>New mission</h2><p>One brief. Three independent minds.</p></div></div><span class="local-tag">PRIVATE TO THIS MACHINE</span></div>
+          <label for="task">MISSION BRIEF</label>
+          <textarea id="task" rows="5" placeholder="Example: Help me design a local tool that watches my GitHub repos and summarizes new issues…"></textarea>
+          <div class="form-bottom"><div class="model-wrap"><label for="model">DEFAULT MODEL</label><select id="model"><option value="">Loading models…</option></select><span class="model-hint" id="model-hint">Set a default, then customize each role below.</span></div><button id="launch" class="launch-button"><span>Launch the crew</span><b>↗</b></button></div>
+          <div id="error" class="error" hidden></div>
+        </section>
+
+        <div class="crew-heading"><div><span class="step">02</span><div><h2>The crew</h2><p>Each role gets the same brief and works independently.</p></div></div><button class="text-button" id="refresh-models">↻ Refresh models</button></div>
+        <div class="agent-grid">
+          <article class="agent-card"><div class="agent-top"><i class="crew-icon blue">A</i><span class="agent-number">AGENT 01</span><span class="agent-state">IDLE</span></div><h3>Architect</h3><p>Turns the request into a plan, with the goal and constraints up front.</p><label class="role-model-label" for="model-architect">MODEL FOR THIS ROLE</label><select class="role-model" id="model-architect" data-role="architect"></select><div class="agent-bottom"><span>THINKS IN STRUCTURE</span><span>↗</span></div></article>
+          <article class="agent-card"><div class="agent-top"><i class="crew-icon orange">B</i><span class="agent-number">AGENT 02</span><span class="agent-state">IDLE</span></div><h3>Builder</h3><p>Breaks the plan into concrete components, files, and interfaces.</p><label class="role-model-label" for="model-builder">MODEL FOR THIS ROLE</label><select class="role-model" id="model-builder" data-role="builder"></select><div class="agent-bottom"><span>THINKS IN IMPLEMENTATION</span><span>↗</span></div></article>
+          <article class="agent-card"><div class="agent-top"><i class="crew-icon green">R</i><span class="agent-number">AGENT 03</span><span class="agent-state">IDLE</span></div><h3>Reviewer</h3><p>Looks for edge cases, ambiguity, and what could go sideways.</p><label class="role-model-label" for="model-reviewer">MODEL FOR THIS ROLE</label><select class="role-model" id="model-reviewer" data-role="reviewer"></select><div class="agent-bottom"><span>THINKS IN FAILURE MODES</span><span>↗</span></div></article>
+        </div>
+
+        <section class="results" id="results" hidden><div class="results-head"><div><span class="step">03</span><div><h2>Mission debrief</h2><p id="run-meta">Three responses, ready for your review.</p></div></div><span class="run-status" id="run-status">COMPLETE</span></div><div class="result-grid" id="result-grid"></div></section>
+
+        <section class="history-section"><div class="history-head"><div><span class="step">04</span><div><h2>Recent missions</h2><p>Stored locally on this machine.</p></div></div><button class="text-button" id="clear-history">Clear history</button></div><div id="history" class="history-list"><div class="empty-history">Your missions will show up here.</div></div></section>
+        <footer>Agent Yard <span>•</span> No account. No provider login screen. Your model service stays under your control.</footer>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="settings-dialog" class="settings-dialog">
+    <form method="dialog" class="dialog-head"><div><span class="eyebrow">CONNECTION</span><h2>Ollama settings</h2></div><button class="icon-button" aria-label="Close settings">×</button></form>
+    <div class="settings-body"><p>Agent Yard connects directly to your Ollama service. It does not create an account or store provider credentials.</p><label for="endpoint">OLLAMA URL</label><input id="endpoint" type="url" placeholder="http://192.168.0.53:11434"><label for="timeout">AGENT TIMEOUT</label><div class="timeout-row"><input id="timeout" type="number" min="20" max="600" value="180"><span>seconds</span></div><div class="settings-actions"><button type="button" class="text-button" id="test-connection">Test connection</button><button type="button" class="save-button" id="save-settings">Save settings</button></div><div id="settings-message" class="settings-message"></div></div>
+  </dialog>
+  <script src="/app.js" defer></script>
+</body>
+</html>
