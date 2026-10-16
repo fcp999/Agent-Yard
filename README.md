@@ -22,17 +22,13 @@ Then open `http://<server-lan-ip>:4173` in your browser. Set `PORT` to change th
 
 The Ollama host must be reachable from the machine running Agent Yard. For a remote Ollama host, its service needs to accept connections from this machine. The app itself does not configure Ollama or expose Ollama to the network.
 
-## First cut
+## How missions work
 
-Write a mission brief, choose a default model, then assign a different model to any role. Agent Yard sends the brief to three independent role prompts in parallel:
+Choose a crew preset, write a mission brief, and pick models. The three role agents work independently in parallel. The Coordinator then reconciles their answers into one practical response. Presets cover general work, software builds, troubleshooting, and research.
 
-1. Architect: goal, constraints, and plan.
-2. Builder: concrete solution outline.
-3. Reviewer: ambiguities, failure modes, and verification.
+The page shows live agent status and lets you cancel a long run. When a run finishes, ask up to three follow-up rounds. Export the full mission and its answers as Markdown. Recent missions, connection settings, and per-role model choices are saved in `data/` beside the app. Clear history from the UI at any time.
 
-Recent missions, connection settings, and per-role model choices are saved in `data/` beside the app. Clear history from the UI at any time. No prompt is sent anywhere except the Ollama endpoint you configured.
-
-This version is a planning and review workbench. Agents do not yet edit files, run shell commands, or stay running as background workers. Those should be opt-in capabilities with per-workspace boundaries and visible approval controls in the next step.
+No prompt is sent anywhere except the Ollama endpoint you configured. Agent Yard does not sign in to provider accounts. Agents plan and review; they do not edit files, run shell commands, or stay running as background workers.
 
 ## Test
 
