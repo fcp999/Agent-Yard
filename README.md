@@ -39,3 +39,18 @@ npm test
 ## Configuration
 
 The endpoint can be an Ollama server. Models are discovered from `/api/tags`; chat uses `/api/chat`. The settings API also accepts a model timeout from 20 to 600 seconds.
+
+## Phase 2: mission workspaces (experimental)
+
+Each created mission now owns a directory under `data/workspaces/<mission-id>/`. Open a mission debrief and use **Mission workspace** to list/read files, propose text-file writes, or propose a permitted command. Proposed actions **never execute until you click Approve**. The Reject button records a rejection. Action decisions are appended to `data/workspace-audit.jsonl`.
+
+Allowed commands: `node --test`, `npm test`, `git status --short`, and `git diff --`. Commands run without a shell, in the mission directory, with a 30-second deadline and 256 KB process-output limit. Commands such as `npm test` execute code and should only be approved for trusted workspace content. No arbitrary command or Git push capability is exposed.
+
+### Workspace API
+
+- `GET /api/runs/:id/workspace` returns files and approval tickets.
+- `GET /api/runs/:id/workspace/file?path=src/file.txt` reads a text file.
+- `POST /api/runs/:id/workspace/actions` accepts `{"action":"write","path":"src/file.txt","content":"hello"}` or `{"action":"command","command":"node-test"}`.
+- `POST /api/runs/:id/workspace/approvals/:ticketId` accepts `{"approve":true}` or `{"approve":false}`.
+
+**Scope/limitations:** This is an approval-gated human-operated workspace, not yet an autonomous agent tool loop. Approval tickets are in memory and expire on server restart. The audit log and written files persist. In-progress model calls are marked interrupted after restart, not automatically resumed. No OS/container isolation is provided: execute only trusted code, use a dedicated unprivileged account, and **do not expose the server to untrusted networks**. A future stage should add container execution isolation and AI-proposed tool actions.
