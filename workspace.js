@@ -1,12 +1,12 @@
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { mkdir, readdir, readFile, writeFile, lstat, realpath } from 'node:fs/promises';
+import { mkdir, readdir, readFile, writeFile, lstat } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 const commands = {
-  test: ['npm', ['test', '--', '--runInBand']],
+  test: ['npm', ['test']],
   'node-test': ['node', ['--test']],
   'git-status': ['git', ['status', '--short']],
   'git-diff': ['git', ['diff', '--']],
