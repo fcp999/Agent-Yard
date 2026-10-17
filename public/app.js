@@ -75,7 +75,10 @@ function statusClass(status) { return ['error', 'cancelled'].includes(status) ? 
 
 function renderRun(run, scroll = false) {
   if (!run) return;
+  const changedMission = selectedRun?.id !== run.id;
   selectedRun = run; $('#results').hidden = false;
+  $('#workspace-section').hidden = false;
+  if (changedMission) void refreshWorkspace().catch(e => { $('#workspace-status').textContent = e.message; });
   const usedModels = [...new Set([...(run.agents || []).map((agent) => agent.model), run.model].filter(Boolean))];
   $('#run-meta').textContent = `${presetList.find((preset) => preset.id === run.preset)?.name || 'General'} crew · ${usedModels.join(', ')} · ${new Date(run.createdAt).toLocaleString()}`;
   $('#run-status').textContent = run.status.toUpperCase();
@@ -223,3 +226,53 @@ document.querySelectorAll('.role-model').forEach((select) => select.addEventList
 }));
 
 Promise.all([loadPresets(), loadSettings()]).then(refreshHistory).catch((err) => { errorBox.textContent = err.message; errorBox.hidden = false; });
+
+async function refreshWorkspace() {
+  if (!selectedRun) return;
+  const id = selectedRun.id;
+  const data = await api('/api/runs/' + encodeURIComponent(id) + '/workspace');
+  if (selectedRun?.id !== id) return;
+  $('#workspace-files').replaceChildren();
+  for (const file of data.files) {
+    const line = document.createElement('div'); line.className = 'history-row';
+    line.textContent = file.type === 'directory' ? '📁 ' + file.path : '📄 ' + file.path;
+    if (file.type === 'file') line.addEventListener('click', () => { $('#workspace-path').value = file.path; $('#workspace-read').click(); });
+    $('#workspace-files').append(line);
+  }
+  const approvals = $('#workspace-approvals'); approvals.replaceChildren();
+  for (const approval of data.approvals) {
+    const row = document.createElement('div'); row.className = 'history-row';
+    const description = document.createElement('pre');
+    description.textContent = approval.action + ': ' + (approval.path || approval.command) + '\\n' + (approval.contentPreview || approval.result || '') + '\\nStatus: ' + approval.status;
+    row.append(description);
+    if (approval.status === 'pending') {
+      for (const choice of [true, false]) {
+        const button = document.createElement('button'); button.textContent = choice ? 'Approve' : 'Reject'; button.className = choice ? 'save-button' : 'text-button';
+        button.addEventListener('click', async () => {
+          try { await api('/api/runs/' + encodeURIComponent(id) + '/workspace/approvals/' + approval.id, { method: 'POST', body: JSON.stringify({ approve: choice }) }); await refreshWorkspace(); }
+          catch (e) { $('#workspace-status').textContent = e.message; }
+        });
+        row.append(button);
+      }
+    }
+    approvals.append(row);
+  }
+}
+$('#workspace-refresh').addEventListener('click', () => refreshWorkspace().catch(e => { $('#workspace-status').textContent = e.message; }));
+$('#workspace-read').addEventListener('click', async () => {
+  if (!selectedRun) return;
+  try {
+    const data = await api('/api/runs/' + selectedRun.id + '/workspace/file?path=' + encodeURIComponent($('#workspace-path').value));
+    $('#workspace-content').value = data.content; $('#workspace-status').textContent = 'Read ' + data.path;
+  } catch (e) { $('#workspace-status').textContent = e.message; }
+});
+async function proposeWorkspace(payload) {
+  if (!selectedRun) return;
+  try {
+    await api('/api/runs/' + selectedRun.id + '/workspace/actions', { method: 'POST', body: JSON.stringify(payload) });
+    $('#workspace-status').textContent = 'Action proposed. Review and approve below.';
+    await refreshWorkspace();
+  } catch (e) { $('#workspace-status').textContent = e.message; }
+}
+$('#workspace-propose-write').addEventListener('click', () => proposeWorkspace({ action: 'write', path: $('#workspace-path').value, content: $('#workspace-content').value }));
+$('#workspace-propose-command').addEventListener('click', () => proposeWorkspace({ action: 'command', command: $('#workspace-command').value }));
