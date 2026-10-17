@@ -3,6 +3,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
+import { workspaceManager } from './workspace.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(here, 'public');
@@ -112,13 +113,23 @@ async function askModel(settings, model, messages, signal) {
 }
 
 export function createServer({ stateDir = dataDir } = {}) {
+  const workspaces = workspaceManager(stateDir);
   const settingsPath = path.join(stateDir, 'settings.json');
   const historyPath = path.join(stateDir, 'runs.json');
   let historyPromise;
   let writeQueue = Promise.resolve();
   const controllers = new Map();
   const deletedRuns = new Set();
-  const getRuns = () => (historyPromise ||= readJson(historyPath, []));
+  const getRuns = () => (historyPromise ||= readJson(historyPath, []).then(runs => {
+    for (const run of runs) {
+      if (['running', 'cancelling'].includes(run.status)) {
+        run.status = 'interrupted';
+        run.error = 'Server restarted. Previous model calls were interrupted; start a follow-up or new mission.';
+        run.finishedAt = new Date().toISOString();
+      }
+    }
+    return runs;
+  }));
   async function saveRuns() {
     const runs = await getRuns();
     writeQueue = writeQueue.then(() => writeJson(historyPath, runs.slice(0, 30)));
@@ -197,6 +208,27 @@ export function createServer({ stateDir = dataDir } = {}) {
   return http.createServer(async (req, res) => {
     try {
       const url = new URL(req.url, 'http://127.0.0.1');
+      // Workspace tools are available only for missions recorded in this installation.
+      const workspaceMatch = url.pathname.match(/^\/api\/runs\/([^/]+)\/workspace(?:\/(files|file|actions|approvals)(?:\/([^/]+))?)?$/);
+      if (workspaceMatch) {
+        const [, runId, operation, ticketId] = workspaceMatch;
+        if (!await getRun(runId)) return json(res, 404, { error: 'Mission not found.' });
+        if (req.method === 'GET' && !operation) return json(res, 200, { files: await workspaces.list(runId), approvals: workspaces.approvals(runId) });
+        if (req.method === 'GET' && operation === 'files') return json(res, 200, { files: await workspaces.list(runId) });
+        if (req.method === 'GET' && operation === 'file') return json(res, 200, { path: url.searchParams.get('path'), content: await workspaces.read(runId, url.searchParams.get('path')) });
+        if (req.method === 'GET' && operation === 'approvals') return json(res, 200, { approvals: workspaces.approvals(runId) });
+        if (req.method === 'POST' && operation === 'actions' && !ticketId) {
+          const input = await bodyJson(req);
+          return json(res, 202, { approval: await workspaces.propose(runId, input.action, input.action === 'write' ? { path: input.path, content: input.content } : { command: input.command }) });
+        }
+        if (req.method === 'POST' && operation === 'approvals' && ticketId) {
+          const input = await bodyJson(req);
+          if (typeof input.approve !== 'boolean') return json(res, 400, { error: 'approve must be true or false' });
+          if (!workspaces.approvals(runId).some(a => a.id === ticketId)) return json(res, 404, { error: 'Approval not in this mission' });
+          return json(res, 200, { approval: await workspaces.decide(ticketId, input.approve) });
+        }
+        return json(res, 405, { error: 'Unsupported workspace operation.' });
+      }
       if (req.method === 'GET' && url.pathname === '/api/presets') {
         return json(res, 200, { presets: Object.entries(presets).map(([id, preset]) => ({ id, name: preset.name, roles: preset.roles.map(({ id: roleId, name, description }) => ({ id: roleId, name, description })) })) });
       }
@@ -269,6 +301,7 @@ export function createServer({ stateDir = dataDir } = {}) {
         const first = { number: 1, prompt: task, agents: [], coordinator: null, status: 'queued', createdAt: run.createdAt };
         run.rounds.push(first);
         const runs = await getRuns(); runs.unshift(run); runs.splice(30); await saveRuns();
+        await workspaces.dir(run.id);
         void startRound(run, first);
         return json(res, 202, { run });
       }
