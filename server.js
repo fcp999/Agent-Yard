@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { workspaceManager } from './workspace.js';
+import { develop } from './development.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(here, 'public');
@@ -200,7 +201,36 @@ export function createServer({ stateDir = dataDir } = {}) {
   async function startRound(run, round) {
     const controller = new AbortController();
     controllers.set(run.id, controller);
-    try { await executeRound(run, round, presets[run.preset] || presets.general, await getSettings(stateDir), controller.signal); }
+    try {
+      const settings = await getSettings(stateDir);
+      if (run.preset === 'coding' && run.autonomous) {
+        round.status = 'running';
+        const roles = presets.coding.roles;
+        const generate = (role, prompt) => askModel(settings, run.models[role] || run.model,
+          [{ role: 'system', content: role === 'builder'
+            ? 'You write complete small source files. Output only valid JSON with files and notes. Never use markdown.'
+            : role === 'reviewer'
+              ? 'Review the test outcome and implementation. Output only valid JSON: {"pass":boolean,"feedback":"reason"}.'
+              : 'Provide a concise implementation plan.' },
+           { role: 'user', content: prompt }], controller.signal);
+        const result = await develop({ task: round.prompt, id: run.id, workspaces, generate,
+          signal: controller.signal, cycles: run.maxCycles || 3,
+          onProgress: async entry => {
+            run.execution ||= [];
+            run.execution.push(entry);
+            run.progress = { completed: run.execution.length, total: (run.maxCycles || 3) * 2, message: 'Autonomous cycle: ' + (entry.attempt || 1) };
+            await saveRun(run);
+          } });
+        run.development = result;
+        round.agents = [];
+        round.coordinator = { name: 'Coordinator', model: run.model, status: 'complete',
+          answer: result.status === 'complete' ? 'Build and tests passed reviewer check. Inspect mission workspace.' : 'Development stopped after bounded retries. Inspect the execution log.' };
+        run.agents = round.agents; run.coordinator = round.coordinator;
+        round.status = result.status === 'complete' ? 'complete' : 'partial';
+        run.status = round.status; run.finishedAt = new Date().toISOString();
+        await saveRun(run);
+      } else await executeRound(run, round, presets[run.preset] || presets.general, settings, controller.signal);
+    }
     catch (err) { run.status = 'error'; run.error = err.message; run.finishedAt = new Date().toISOString(); await saveRun(run); }
     finally { controllers.delete(run.id); }
   }
@@ -297,7 +327,7 @@ export function createServer({ stateDir = dataDir } = {}) {
         if (task.length > 12_000) return json(res, 400, { error: 'Keep a job under 12,000 characters.' });
         const selectedModels = Object.fromEntries(baseRoles.map((role) => [role.id, String(input.models?.[role.id] || model).trim()]));
         if (!model || Object.values(selectedModels).some((item) => !item)) return json(res, 400, { error: 'Choose a model for the Coordinator and each role.' });
-        const run = { id: randomUUID(), task, model, models: selectedModels, preset, status: 'running', createdAt: new Date().toISOString(), agents: [], coordinator: null, rounds: [], progress: { completed: 0, total: 4, message: 'Starting crew…' } };
+        const run = { id: randomUUID(), task, model, models: selectedModels, preset, autonomous: preset === 'coding' && input.autonomous === true, maxCycles: Math.min(5, Math.max(1, Number(input.maxCycles) || 3)), status: 'running', createdAt: new Date().toISOString(), agents: [], coordinator: null, rounds: [], progress: { completed: 0, total: 4, message: 'Starting crew…' } };
         const first = { number: 1, prompt: task, agents: [], coordinator: null, status: 'queued', createdAt: run.createdAt };
         run.rounds.push(first);
         const runs = await getRuns(); runs.unshift(run); runs.splice(30); await saveRuns();
