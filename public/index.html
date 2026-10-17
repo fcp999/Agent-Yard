@@ -47,6 +47,20 @@
 
         <section class="results" id="results" hidden><div class="results-head"><div><span class="step">03</span><div><h2>Mission debrief</h2><p id="run-meta">Crew responses and Coordinator synthesis.</p></div></div><span class="run-status" id="run-status">COMPLETE</span></div><div class="progress-track"><div id="progress-bar"></div></div><p id="progress-message" class="progress-message"></p><div class="result-grid" id="result-grid"></div><div class="round-actions" id="round-actions" hidden><label for="follow-up">FOLLOW-UP ROUND</label><textarea id="follow-up" rows="3" maxlength="4000" placeholder="Ask the crew to refine, challenge, or extend the result…"></textarea><div><button id="follow-up-button" class="save-button">Run follow-up round</button><button id="export-markdown" class="text-button">Export Markdown</button></div></div></section>
 
+        <section class="history-section" id="workspace-section" hidden>
+          <div class="history-head"><div><span class="step">04</span><div><h2>Mission workspace</h2><p>Read files, propose changes and approve tool execution.</p></div></div><button id="workspace-refresh" class="text-button">Refresh</button></div>
+          <p id="workspace-status"></p><div id="workspace-files" class="history-list"></div>
+          <label for="workspace-path">FILE PATH (RELATIVE TO MISSION)</label>
+          <input id="workspace-path" placeholder="src/example.js">
+          <button id="workspace-read" class="text-button">Read file</button>
+          <label for="workspace-content">FILE CONTENT</label>
+          <textarea id="workspace-content" rows="9" placeholder="Text file contents"></textarea>
+          <button id="workspace-propose-write" class="save-button">Propose file write</button>
+          <label for="workspace-command">COMMAND (ALLOWLIST)</label>
+          <select id="workspace-command"><option value="node-test">Node tests</option><option value="test">npm test</option><option value="git-status">Git status</option><option value="git-diff">Git diff</option></select>
+          <button id="workspace-propose-command" class="save-button">Propose command</button>
+          <div id="workspace-approvals" class="history-list"></div>
+        </section>
         <section class="history-section"><div class="history-head"><div><span class="step">04</span><div><h2>Recent missions</h2><p>Stored locally on this machine.</p></div></div><button class="text-button" id="clear-history">Clear history</button></div><div id="history" class="history-list"><div class="empty-history">Your missions will show up here.</div></div></section>
         <footer>Agent Yard <span>•</span> No account. No provider login screen. Your model service stays under your control.</footer>
       </section>
